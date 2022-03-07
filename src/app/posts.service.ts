@@ -1,29 +1,38 @@
 import { Injectable } from '@angular/core';
 import { Post } from './post.model';
-import { HttpClient } from '@angular/common/http';
-import { map } from 'rxjs/operators';
-import { Subject } from 'rxjs';
+import { HttpClient, HttpEventType, HttpHeaders, HttpParams } from '@angular/common/http';
+import { map, catchError, tap } from 'rxjs/operators';
+import { Subject,throwError } from 'rxjs';
 @Injectable({
   providedIn: 'root'
 })
 export class PostsService {
-  postIsCreated=new Subject<boolean>();
+ error= new Subject<string>();
 
 
 
   constructor(private http: HttpClient) { }   // injectime http clienti ja yleval impordime                                                 
 
-  onCreatePost(postData: Post) {
+onCreatePost(postData: Post) {
     // Send Http request
-    this.postIsCreated.next(true);
+    
     return this.http                                                                           // postime ja m22rame millisena tagastatakse  
       .post<{[key: string]: Post}>(                                                      
         'https://angularcourse-bdbe7-default-rtdb.europe-west1.firebasedatabase.app/posts.json',  //1. argument on URL, endpoint lisatud
-        postData                                                                                  //2. argument on meie data , body
+        postData,{                                                                                //2. argument on meie data , body
+
+        observe: 'response'  // 3. millist datat tagasi saame                                                           
+        
+        }                                                                                  
       )
       .subscribe(responseData => {                                                                // subscribe on kohustuslik,
-        console.log(responseData);                                                                // tegemist observablega
+        console.log(responseData);  
+        
+                                                                       // tegemist observablega
+      }, error=>{
+        this.error.next(error.message);
       });
+      
       
   };
 
@@ -35,8 +44,16 @@ export class PostsService {
 
 
       return this.http
-      .get<{[key: string]: Post}>('https://angularcourse-bdbe7-default-rtdb.europe-west1.firebasedatabase.app/posts.json')  //<> vahel
+      .get<{[key: string]: Post}>('https://angularcourse-bdbe7-default-rtdb.europe-west1.firebasedatabase.app/posts.json',  //<> vahel
                                                                                                                             //tagastus tyyp
+        {
+          headers: new HttpHeaders({"Custom-Header": 'Hello'}),     // lisame custom header data
+          params: new HttpParams().set('print','pretty'),            // lisame URLI paramsid juurde
+          responseType:'json'                                       // default on json nagunii 
+
+        }
+      )  
+                                                                                                                            
       .pipe(map((responseData)=>{               // transformeerime saadud data l2bi pipe, v2ljastame array of observables
           const postArray:Post[]=[];
 
@@ -58,7 +75,24 @@ export class PostsService {
     }
     deletePost(){
 
-      return this.http.delete('https://angularcourse-bdbe7-default-rtdb.europe-west1.firebasedatabase.app/posts.json')
+      return this.http.delete('https://angularcourse-bdbe7-default-rtdb.europe-west1.firebasedatabase.app/posts.json',
+      {
+        observe: 'events',
+        responseType: 'json',
+
+
+
+
+      }).pipe(tap((event) =>{               // tap iga saame ligi eventile
+        console.log(event);
+
+        if(event.type === HttpEventType.Sent){
+          console.log(event)
+        }
+        if(event.type === HttpEventType.Response){
+          console.log(event.body)
+        }
+      }))
       
 
 
